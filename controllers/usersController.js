@@ -1,28 +1,66 @@
-const users = [
+const models = require('../models');
+const User = models.User;
+
+const users2 = [
   {id: 1, name: 'David'},
   {id: 2, name: 'Pierre'},
   {id: 3, name: 'Jean'},
 ]
 
 module.exports = {
-  index: (req, res, next) => {
-    res.json({ users })
+  index: async (req, res, next) => {
+    const users = await User.findAll({ include: 'address' });
+    res.json({users});
+
   },
-  show: (req, res, next) => {
+  show: async (req, res, next) => {
     const { id } = req.params;
-    const user = users.find(user => user.id == id)
-    res.json({ user })
+    const user = await User.findByPk(id, { include: 'address' });
+    if(user){
+      res.json({ user })
+    } else {
+      res.status(404).json({ message: `User was not found with id ${id}` })
+    }
   },
-  create: (req, res, next) => {
-    res.json({ user: req.body, test: req.query.test })
+  create: async (req, res, next) => {
+    const { firstname, lastname, email, password, username, phone, city } = req.body;
+    try{
+      const user = await User.create({ firstname,lastname, email, password, username, phone, address: { city } }, { include: 'address' });
+      res.status(201).json({ user })
+    } catch(err){
+      const { errors } = err;
+      res.status(422).json({ errors })
+    }
   },
-  update: (req, res, next) => {
+  update: async (req, res, next) => {
     const { id } = req.params;
-    const user = users.find(user => user.id == id)
-    res.json({ user: {...user, ...req.body }})
+    let user = await User.findByPk(id);
+    if(user){
+      try {
+        const { firstname, lastname, email, password, username, phone } = req.body;
+        user = await user.update({ firstname, lastname, email, password, username, phone });
+        res.json({ user })
+      } catch (err) {
+        const { errors } = err;
+        res.status(422).json({ errors });
+      }
+    } else {
+      res.status(404).json({ message: `User was not found with id ${id}` })
+    }
   },
-  destroy: (req, res, next) => {
+  destroy: async (req, res, next) => {
     const { id } = req.params;
-    res.json({ message: `user with ${id} was deleted !` })
+    const user = await User.findByPk(id);
+    if(user){
+      try {
+        await user.destroy();
+        res.status(204).send('deleted')
+      } catch (err) {
+        const { errors } = err;
+        res.status(422).json({ errors })
+      }
+    } else {
+      res.status(404).json({ message: `User was not found with id ${id}` })
+    }
   },
 }
